@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/instance-id)
+AZ_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/placement/availability-zone-id)
+
+aws ecr get-login-password --region ${region} | \
+  docker login --username AWS --password-stdin ${ecr_registry}
+
+docker network create ca2
+
+docker run -d --name db --network ca2 --restart always \
+  -e MYSQL_ROOT_PASSWORD=${db_password} \
+  -e MYSQL_DATABASE=ca2 \
+  -e MYSQL_USER=ca2 \
+  -e MYSQL_PASSWORD=${db_password} \
+  mysql:8.4
+
+docker run -d --name app --network ca2 --restart always -p 8080:8080 \
+  -e DB_HOST=db -e DB_PORT=3306 -e DB_NAME=ca2 \
+  -e DB_USER=ca2 -e DB_PASSWORD=${db_password} \
+  -e INSTANCE_ID=$INSTANCE_ID -e AZ_ID=$AZ_ID \
+  ${image}
