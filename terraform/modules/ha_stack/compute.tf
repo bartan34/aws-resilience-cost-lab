@@ -72,6 +72,9 @@ resource "aws_autoscaling_group" "app" {
   health_check_type         = "ELB"
   health_check_grace_period = 180
 
+  wait_for_elb_capacity     = 2
+  wait_for_capacity_timeout = "15m"
+
   launch_template {
     id      = aws_launch_template.app.id
     version = aws_launch_template.app.latest_version
