@@ -38,3 +38,8 @@ variable "db_instance_class" {
   type    = string
   default = "db.t4g.small"
 }
+
+variable "ami_id" {
+  description = "Pinned AMI"
+  type        = string
+}

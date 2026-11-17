@@ -12,6 +12,7 @@ module "stack" {
   multi_az     = false
   image        = local.image
   ecr_registry = local.ecr_registry
+  ami_id       = "ami-01feb2929337f1f0f"
 }
 
 output "db_endpoint" {
@@ -20,4 +21,12 @@ output "db_endpoint" {
 
 output "db_az" {
   value = module.stack.db_az
+}
+
+output "app_url" {
+  value = module.stack.app_url
+}
+
+output "asg_name" {
+  value = module.stack.asg_name
 }

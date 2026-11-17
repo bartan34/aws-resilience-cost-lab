@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/instance-id)
+AZ_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/placement/availability-zone-id)
+
+for i in $(seq 1 30); do
+  DB_PASSWORD=$(aws ssm get-parameter --region ${region} \
+    --name ${db_password_param} --with-decryption \
+    --query Parameter.Value --output text) && break
+  sleep 5
+done
+
+aws ecr get-login-password --region ${region} | \
+  docker login --username AWS --password-stdin ${ecr_registry}
+
+docker run -d --name app --restart always -p 8080:8080 \
+  -e DB_HOST=${db_host} -e DB_PORT=3306 -e DB_NAME=ca2 \
+  -e DB_USER=ca2 -e DB_PASSWORD="$DB_PASSWORD" \
+  -e INSTANCE_ID="$INSTANCE_ID" -e AZ_ID="$AZ_ID" \
+  ${image}
