@@ -1,0 +1,4 @@
+injected_utc,tier,fault,target,detail
+2026-11-18T19:35:20.796+00:00,T1,f1,i-04a3057cc0c9d9a89,terminate-instances
+2026-11-18T19:38:36.058+00:00,T1,f2,ca2-t1,reboot
+2026-11-18T19:50:40.960+00:00,T1,f2b,ca2-t1,stop-then-start (start issued 2026-11-18T19:55:00.730+00:00)

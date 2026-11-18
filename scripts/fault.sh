@@ -1,6 +1,11 @@
 #!/bin/bash
 # Inject one fault and log the injection time.
-# Usage: scripts/fault.sh f1|f2 t0|t1|t2
+# Usage: scripts/fault.sh f1|f2a|f2b t0|t1|t2
+#   f1   terminate one running app instance of the tier
+#   f2a  plain database reboot (same operation on every tier)
+#   f2b  loss of the primary database:
+#        Multi-AZ  -> reboot with forced failover
+#        Single-AZ -> stop, wait until stopped, start (no standby to fail over to)
 set -euo pipefail
 export AWS_PROFILE=ca2 AWS_PAGER="" AWS_DEFAULT_REGION=eu-west-1
 
@@ -26,7 +31,13 @@ case "$FAULT" in
     aws ec2 terminate-instances --instance-ids "$TARGET" > /dev/null
     DETAIL="terminate-instances"
     ;;
-  f2)
+  f2a)
+    TARGET="ca2-$TIER_LC"
+    T=$(now)
+    aws rds reboot-db-instance --db-instance-identifier "$TARGET" > /dev/null
+    DETAIL="reboot"
+    ;;
+  f2b)
     TARGET="ca2-$TIER_LC"
     MULTI=$(aws rds describe-db-instances --db-instance-identifier "$TARGET" \
       --query 'DBInstances[0].MultiAZ' --output text)
@@ -35,12 +46,19 @@ case "$FAULT" in
       aws rds reboot-db-instance --db-instance-identifier "$TARGET" --force-failover > /dev/null
       DETAIL="reboot-with-failover"
     else
-      aws rds reboot-db-instance --db-instance-identifier "$TARGET" > /dev/null
-      DETAIL="reboot"
+      aws rds stop-db-instance --db-instance-identifier "$TARGET" > /dev/null
+      echo "$T stop issued on $TARGET, waiting for status stopped..."
+      until [ "$(aws rds describe-db-instances --db-instance-identifier "$TARGET" \
+        --query 'DBInstances[0].DBInstanceStatus' --output text)" = "stopped" ]; do
+        sleep 5
+      done
+      T_START=$(now)
+      aws rds start-db-instance --db-instance-identifier "$TARGET" > /dev/null
+      DETAIL="stop-then-start (start issued $T_START)"
     fi
     ;;
   *)
-    echo "usage: $0 f1|f2 t0|t1|t2"
+    echo "usage: $0 f1|f2a|f2b t0|t1|t2"
     exit 1
     ;;
 esac
