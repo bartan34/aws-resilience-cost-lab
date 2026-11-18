@@ -52,6 +52,14 @@ def main():
     p.add_argument("--interval", type=float, default=1.0)
     p.add_argument("--timeout", type=float, default=2.0)
     args = p.parse_args()
+    if not args.url.startswith(("http://", "https://")):
+        print(f"--url must start with http:// or https:// (got {args.url!r})")
+        return
+
+    status, _, _, error = one_request(args.url, args.timeout)
+    print(f"preflight: status={status} {error}", flush=True)
+    if status != 200:
+        p.error("preflight request failed; check the URL and that the tier is up")
 
     stop = threading.Event()
     signal.signal(signal.SIGINT, lambda *_: stop.set())
