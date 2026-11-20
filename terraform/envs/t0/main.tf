@@ -56,8 +56,8 @@ resource "aws_security_group" "app" {
 }
 
 resource "aws_instance" "app" {
-  ami                    = data.aws_ssm_parameter.al2023_arm64.insecure_value
-  instance_type          = "t4g.small"
+  ami                    = "ami-01feb2929337f1f0f"
+  instance_type          = "t4g.medium"
   subnet_id              = module.network.subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.app.id]
   iam_instance_profile   = module.instance_role.instance_profile_name
